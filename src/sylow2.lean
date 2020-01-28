@@ -241,13 +241,13 @@ have hs : card (left_cosets K) = card G / (p ^ dlogn p (card G)) :=
 
 have hmodeq : card (left_cosets K) ≡ card (fixed_points H (left_cosets K)) [MOD p] := card_modeq_card_fixed_points hp (card_sylow H hp),
 
-have hmode2 : card G / (p ^ dlogn p (card G)) ≡ card (fixed_points H (left_cosets K)) [MOD p] := eq.subst hs hmodeq,
+have hmodeq2 : card G / (p ^ dlogn p (card G)) ≡ card (fixed_points H (left_cosets K)) [MOD p] := eq.subst hs hmodeq,
 
 --3. Schritt: 0 < |FixedPoints|
 
 have hfixed : 0 < card (fixed_points H (left_cosets K)) := nat.pos_of_ne_zero 
   (λ h, (not_dvd_div_dlogn (fintype.card_pos_iff.2 ⟨(1 : G)⟩) hp.1) 
-    $ by rwa [h, nat.modeq.modeq_zero_iff] at hmode2),
+    $ by rwa [h, nat.modeq.modeq_zero_iff] at hmodeq2),
 
 --4. Schritt: 
 
