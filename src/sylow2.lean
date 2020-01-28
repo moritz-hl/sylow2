@@ -213,8 +213,7 @@ by rw ← card_prod;
 
 namespace set
 
---classical?
-
+--Braucht man hier wirklich Klassikal?
 lemma eq_of_card_eq_of_subset {s t : set α} [fintype s] [fintype t]
   (hcard : card s = card t) (hsub : s ⊆ t) : s = t :=
 classical.by_contradiction (λ h, lt_irrefl (card t)
@@ -228,11 +227,6 @@ lemma conj_inj_left {x : G} : injective (λ (n : G), x * n * x⁻¹) :=
 
 open mul_action
 
-#check @card_modeq_card_fixed_points
-
-variable [fintype G]
-
-#check card G
 
 lemma sylow_2 [fintype G] {p : ℕ} (hp : nat.prime p)
   (H K : set G) [is_sylow H hp] [is_sylow K hp] :
@@ -272,7 +266,7 @@ begin
     card_sylow K hp, card_sylow H hp] },
   { -- |- H ⊆ conjugate_set x K
     assume y hy,
-    have : (y⁻¹ * x)⁻¹ * x ∈ K := quotient.exact (mem_fixed_points'.1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩),
+    have : (y⁻¹ * x)⁻¹ * x ∈ K := quotient.exact ((mem_fixed_points' (left_cosets K)).1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩),
     simp [conjugate_set_eq_preimage, set.preimage, mul_inv_rev, *, mul_assoc] at * }
 end
 
