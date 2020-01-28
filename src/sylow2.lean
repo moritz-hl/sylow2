@@ -16,11 +16,9 @@ lemma mem_fixed_points_iff_card_orbit_eq_one {a : α}
 begin
   rw [fintype.card_eq_one_iff, mem_fixed_points],
   split,
-  { 
-    assume h,
+  { assume h,
     existsi (⟨a, mem_orbit_self _⟩ : {j //  j ∈ orbit G a}),
-    exact   λ ⟨b, ⟨x, hx⟩⟩, subtype.eq $ by simp [h x, hx.symm]
-    },
+    exact   λ ⟨b, ⟨x, hx⟩⟩, subtype.eq $ by simp [h x, hx.symm] },
   { assume h x,
     rcases h with ⟨⟨z, hz⟩, hz₁⟩,
     exact calc x • a = z : subtype.mk.inj (hz₁ ⟨x • a, mem_orbit _ _⟩)
@@ -213,7 +211,7 @@ by rw ← card_prod;
 
 namespace set
 
---Braucht man hier wirklich Klassikal?
+--Braucht man hier wirklich Classical?
 lemma eq_of_card_eq_of_subset {s t : set α} [fintype s] [fintype t]
   (hcard : card s = card t) (hsub : s ⊆ t) : s = t :=
 classical.by_contradiction (λ h, lt_irrefl (card t)
