@@ -27,7 +27,7 @@ begin
       ... = a : (subtype.mk.inj (hz₁ ⟨a, mem_orbit_self _⟩)).symm }
 end
 
-#check @subtype.mk.inj -- {x // p x} <-> subtype, natürlich injective
+#check @subtype.mk.inj
 #check mem_orbit_self
 
 lemma card_modeq_card_fixed_points [fintype α] [fintype G] [fintype (fixed_points G α)]
@@ -133,6 +133,17 @@ le_antisymm (le_of_not_gt $ λ h, not_dvd_of_gt_dlogn ha hp h h₁)
   (le_of_not_gt $ λ h, h₂ $ calc p ^ succ n ∣ p ^ dlogn p a : nat.pow_dvd_pow _ h
     ... ∣ _ : dlogn_dvd _ hp)
 
+lemma dlogn_eq_of_not_dvd {a b p  : ℕ} (hp : prime p) (hpb : ¬p ∣ b) : dlogn p a = dlogn p (a * b) :=
+if ha : a = 0 then by simp [ha, dlogn] else
+eq_dlogn_of_dvd_of_succ_not_dvd hp.1 (dvd.trans (dlogn_dvd _ hp.1) (dvd_mul_right _ _))
+  (λ h, not_dvd_of_gt_dlogn (nat.pos_of_ne_zero ha)
+  hp.1 (lt_succ_self _) (pow_dvd_of_dvd_mul hp h hpb))
+
+lemma not_dvd_div_dlogn {p a : ℕ} (ha : a > 0) (hp : p > 1) : ¬p ∣ a / (p ^ dlogn p a) :=
+by rw [← nat.mul_dvd_mul_iff_left (nat.pos_pow_of_pos (dlogn p a) (lt_trans dec_trivial hp)),
+    nat.mul_div_cancel' (dlogn_dvd _ hp), ← nat.pow_succ];
+  exact not_dvd_of_gt_dlogn ha hp (lt_succ_self _)
+
 open nat.prime
 
 def left_cosets [group α] (s : set α) [is_subgroup s] : Type* := quotient (left_rel s)
@@ -153,18 +164,6 @@ end fintype
 local attribute [instance, priority 0] set_fintype classical.prop_decidable
 
 noncomputable instance [fintype G] (H : set G) [is_subgroup H] :  fintype (left_cosets H) := fintype.quotient_fintype (left_rel H)
-
-lemma dlogn_eq_of_not_dvd {a b p  : ℕ} (hp : prime p) (hpb : ¬p ∣ b) : dlogn p a = dlogn p (a * b) :=
-if ha : a = 0 then by simp [ha, dlogn] else
-eq_dlogn_of_dvd_of_succ_not_dvd hp.1 (dvd.trans (dlogn_dvd _ hp.1) (dvd_mul_right _ _))
-  (λ h, not_dvd_of_gt_dlogn (nat.pos_of_ne_zero ha)
-  hp.1 (lt_succ_self _) (pow_dvd_of_dvd_mul hp h hpb))
-
-lemma not_dvd_div_dlogn {p a : ℕ} (ha : a > 0) (hp : p > 1) : ¬p ∣ a / (p ^ dlogn p a) :=
-by rw [← nat.mul_dvd_mul_iff_left (nat.pos_pow_of_pos (dlogn p a) (lt_trans dec_trivial hp)),
-    nat.mul_div_cancel' (dlogn_dvd _ hp), ← nat.pow_succ];
-  exact not_dvd_of_gt_dlogn ha hp (lt_succ_self _)
-
 
 class is_sylow [fintype G] (H : set G) {p : ℕ} (hp : prime p) extends is_subgroup H : Prop := 
 (card_eq : card H = p ^ dlogn p (card G))
@@ -212,6 +211,28 @@ lemma card_eq_card_cosets_mul_card_subgroup [fintype G] (H : set G) [is_subgroup
 by rw ← card_prod;
   exact card_congr (is_subgroup.group_equiv_quotient_times_subgroup _)
 
+namespace set
+
+--classical?
+
+lemma eq_of_card_eq_of_subset {s t : set α} [fintype s] [fintype t]
+  (hcard : card s = card t) (hsub : s ⊆ t) : s = t :=
+classical.by_contradiction (λ h, lt_irrefl (card t)
+  (have card s < card t := set.card_lt_card ⟨hsub, h⟩,
+    by rwa hcard at this))
+
+end set
+
+lemma conj_inj_left {x : G} : injective (λ (n : G), x * n * x⁻¹) :=
+λ a b h, (mul_left_inj x).1 $ (mul_right_inj (x⁻¹)).1 h
+
+open mul_action
+
+#check @card_modeq_card_fixed_points
+
+variable [fintype G]
+
+#check card G
 
 lemma sylow_2 [fintype G] {p : ℕ} (hp : nat.prime p)
   (H K : set G) [is_sylow H hp] [is_sylow K hp] :
@@ -219,19 +240,22 @@ lemma sylow_2 [fintype G] {p : ℕ} (hp : nat.prime p)
 
 --1. Schritt: Index von K berechnen
 
-have hs : card (left_cosets H) = card G / (p ^ dlogn p (card G)) := 
+have hs : card (left_cosets K) = card G / (p ^ dlogn p (card G)) := 
   (nat.mul_right_inj (pos_pow_of_pos (dlogn p (card G)) hp.pos)).1
   $ by rw [← card_sylow K hp, ← card_eq_card_cosets_mul_card_subgroup, card_sylow K hp, 
-    nat.div_mul_cancel (dlogn_dvd _ hp.gt_one)],
+    nat.div_mul_cancel (dlogn_dvd _ hp.1)],
 
 --2. Schritt:  Index == |FixPunkte| mod p
 
-have hmodeq : card G / (p ^ dlogn p (card G)) ≡ card (fixed_points (mul_left_cosets K H)) [MOD p] := 
-  hs ▸ card_modeq_card_fixed_points (mul_left_cosets K H) hp (card_sylow H hp),
+have hmodeq : card (left_cosets K) ≡ card (fixed_points H (left_cosets K)) [MOD p] := card_modeq_card_fixed_points hp (card_sylow H hp),
+
+have hmode2 : card G / (p ^ dlogn p (card G)) ≡ card (fixed_points H (left_cosets K)) [MOD p] := eq.subst hs hmodeq,
 
 --3. Schritt: 0 < |FixedPoints|
 
-have hfixed : 0 < card (fixed_points (mul_left_cosets K H)) := sorry
+have hfixed : 0 < card (fixed_points H (left_cosets K)) := nat.pos_of_ne_zero 
+  (λ h, (not_dvd_div_dlogn (fintype.card_pos_iff.2 ⟨(1 : G)⟩) hp.1) 
+    $ by rwa [h, nat.modeq.modeq_zero_iff] at hmode2),
 
 --4. Schritt: 
 
@@ -248,9 +272,10 @@ begin
     card_sylow K hp, card_sylow H hp] },
   { -- |- H ⊆ conjugate_set x K
     assume y hy,
-    have : (y⁻¹ * x)⁻¹ * x ∈ K := quotient.exact 
-      (mem_fixed_points'.1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩),
+    have : (y⁻¹ * x)⁻¹ * x ∈ K := quotient.exact (mem_fixed_points'.1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩),
     simp [conjugate_set_eq_preimage, set.preimage, mul_inv_rev, *, mul_assoc] at * }
 end
 
 end sylow
+
+--quotient.exact (mem_fixed_points'.1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩)
