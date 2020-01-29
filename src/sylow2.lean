@@ -3,10 +3,23 @@ import group_theory.order_of_element data.zmod.basic
 import group_theory.coset
 open equiv fintype finset mul_action function
 open equiv.perm is_subgroup list quotient_group
+open nat
+
 universes u v w
 variables {G : Type u} {α : Type v} {β : Type w} [group G]
 
 local attribute [instance, priority 10] subtype.fintype set_fintype classical.prop_decidable
+
+namespace set
+
+lemma eq_of_card_eq_of_subset {s t : set α} [fintype s] [fintype t]
+  (hcard : card s = card t) (hsub : s ⊆ t) : s = t :=
+classical.by_contradiction (λ h, lt_irrefl (card t)
+  (have card s < card t := set.card_lt_card ⟨hsub, h⟩,
+    by rwa hcard at this))
+
+end set
+
 
 namespace mul_action
 variables [mul_action G α]
@@ -60,15 +73,7 @@ end
 
 end mul_action
 
-lemma quotient_group.card_preimage_mk [fintype G] (s : set G) [is_subgroup s]
-  (t : set (quotient s)) : fintype.card (quotient_group.mk ⁻¹' t) =
-  fintype.card s * fintype.card t :=
-by rw [← fintype.card_prod, fintype.card_congr
-  (preimage_mk_equiv_subgroup_times_set _ _)]
-
 namespace sylow
-
-open nat
 
 def dlogn (p : ℕ) : ℕ → ℕ
 | 0     := 0
@@ -142,26 +147,20 @@ by rw [← nat.mul_dvd_mul_iff_left (nat.pos_pow_of_pos (dlogn p a) (lt_trans de
     nat.mul_div_cancel' (dlogn_dvd _ hp), ← nat.pow_succ];
   exact not_dvd_of_gt_dlogn ha hp (lt_succ_self _)
 
-open nat.prime
+
+local attribute [instance] left_rel
 
 def left_cosets [group α] (s : set α) [is_subgroup s] : Type* := quotient (left_rel s)
 
-local attribute [instance] left_rel set_fintype
-open is_subgroup is_submonoid is_group_hom
+noncomputable instance [fintype G] (H : set G) [is_subgroup H] :  fintype (left_cosets H) := quotient.fintype (left_rel H)
 
-#check mul_left_cosets
 
-namespace fintype
 
-instance quotient_fintype {α : Type*} [fintype α] (s : setoid α)
-  [decidable_eq (quotient s)] : fintype (quotient s) :=
-fintype.of_surjective quotient.mk (λ x, quotient.induction_on x (λ x, ⟨x, rfl⟩))
+lemma card_eq_card_cosets_mul_card_subgroup [fintype G] (H : set G) [is_subgroup H] : 
+  card G = card (left_cosets H) * card H :=
+by rw ← card_prod;
+  exact card_congr (is_subgroup.group_equiv_quotient_times_subgroup _)
 
-end fintype
-
-local attribute [instance, priority 0] set_fintype classical.prop_decidable
-
-noncomputable instance [fintype G] (H : set G) [is_subgroup H] :  fintype (left_cosets H) := fintype.quotient_fintype (left_rel H)
 
 class is_sylow [fintype G] (H : set G) {p : ℕ} (hp : prime p) extends is_subgroup H : Prop := 
 (card_eq : card H = p ^ dlogn p (card G))
@@ -169,6 +168,8 @@ class is_sylow [fintype G] (H : set G) {p : ℕ} (hp : prime p) extends is_subgr
 lemma card_sylow [fintype G] (H : set G) [f : fintype H] {p : ℕ} (hp : prime p) [is_sylow H hp] :
   card H = p ^ dlogn p (card G) := 
 by rw ← is_sylow.card_eq H hp; congr
+
+
 
 def conjugate_set (x : G) (H : set G) : set G :=
 (λ n, x⁻¹ * n * x) ⁻¹' H
@@ -180,6 +181,12 @@ eq.symm (congr_fun (set.image_eq_preimage_of_inverse
 
 lemma conjugate_set_eq_preimage (H : set G) (x : G) :
   conjugate_set x H = (λ n, x⁻¹ * n * x) ⁻¹' H := rfl
+
+lemma conj_inj_left {x : G} : injective (λ (n : G), x * n * x⁻¹) :=
+λ a b h, (mul_left_inj x).1 $ (mul_right_inj (x⁻¹)).1 h
+
+
+
 
 def mul_left_cosets (L₁ L₂ : set G) [is_subgroup L₂] [is_subgroup L₁]
   (x : L₂) (y : left_cosets L₁) : left_cosets L₁ :=
@@ -194,80 +201,41 @@ instance (L₁ L₂ : set G)  [is_subgroup L₁ ] [is_subgroup L₂] : mul_actio
   mul_smul := λ x y a, quotient.induction_on' a (λ a, quotient_group.eq.2
     (by simp [mul_inv_rev, is_submonoid.one_mem, mul_assoc])) }
 
-namespace hidden
-variables (L₁ : set G) (L₂ : set G)
-variables [is_subgroup L₁ ] [is_subgroup L₂]
-variables [fintype (left_cosets L₁)] [is_subgroup L₂]
 
-#check card (fixed_points (L₂) (left_cosets L₁))
-end hidden
 
-#check is_subgroup.group_equiv_quotient_times_subgroup
-
-lemma card_eq_card_cosets_mul_card_subgroup [fintype G] (H : set G) [is_subgroup H] : 
-  card G = card (left_cosets H) * card H :=
-by rw ← card_prod;
-  exact card_congr (is_subgroup.group_equiv_quotient_times_subgroup _)
-
-namespace set
-
---Braucht man hier wirklich Classical?
-lemma eq_of_card_eq_of_subset {s t : set α} [fintype s] [fintype t]
-  (hcard : card s = card t) (hsub : s ⊆ t) : s = t :=
-classical.by_contradiction (λ h, lt_irrefl (card t)
-  (have card s < card t := set.card_lt_card ⟨hsub, h⟩,
-    by rwa hcard at this))
-
-end set
-
-lemma conj_inj_left {x : G} : injective (λ (n : G), x * n * x⁻¹) :=
-λ a b h, (mul_left_inj x).1 $ (mul_right_inj (x⁻¹)).1 h
-
-open mul_action
 
 
 lemma sylow_2 [fintype G] {p : ℕ} (hp : nat.prime p)
   (H K : set G) [is_sylow H hp] [is_sylow K hp] :
   ∃ g : G, H = conjugate_set g K :=
 
---1. Schritt: Index von K berechnen
 
 have hs : card (left_cosets K) = card G / (p ^ dlogn p (card G)) := 
   (nat.mul_right_inj (pos_pow_of_pos (dlogn p (card G)) hp.pos)).1
   $ by rw [← card_sylow K hp, ← card_eq_card_cosets_mul_card_subgroup, card_sylow K hp, 
     nat.div_mul_cancel (dlogn_dvd _ hp.1)],
 
---2. Schritt:  Index == |FixPunkte| mod p
 
-have hmodeq : card (left_cosets K) ≡ card (fixed_points H (left_cosets K)) [MOD p] := card_modeq_card_fixed_points hp (card_sylow H hp),
-
-have hmodeq2 : card G / (p ^ dlogn p (card G)) ≡ card (fixed_points H (left_cosets K)) [MOD p] := eq.subst hs hmodeq,
-
---3. Schritt: 0 < |FixedPoints|
+have hmodeq : card G / (p ^ dlogn p (card G)) ≡ card (fixed_points H (left_cosets K)) [MOD p] := eq.subst hs (mul_action.card_modeq_card_fixed_points hp (card_sylow H hp)),
 
 have hfixed : 0 < card (fixed_points H (left_cosets K)) := nat.pos_of_ne_zero 
   (λ h, (not_dvd_div_dlogn (fintype.card_pos_iff.2 ⟨(1 : G)⟩) hp.1) 
-    $ by rwa [h, nat.modeq.modeq_zero_iff] at hmodeq2),
-
---4. Schritt: 
+    $ by rwa [h, nat.modeq.modeq_zero_iff] at hmodeq),
 
 let ⟨⟨x, hx⟩⟩ := fintype.card_pos_iff.1 hfixed in
 begin
-  haveI : is_subgroup K := by apply_instance, --K is sylow -> K is subgroup (Instanzen) (K ist nur Teilmenge von G)
-  -- |- ∃ (g : G), H = conjugate_set g K
+  haveI : is_subgroup K := by apply_instance, 
   revert hx,
-  -- |- x ∈ fixed_points (mul_left_cosets K H) → (∃ (g : G), H = conjugate_set g K)
+
   refine quotient.induction_on x
     (λ x hx, ⟨x, set.eq_of_card_eq_of_subset _ _⟩),
-  { -- |- card ↥H = card ↥(conjugate_set x K)
+  { 
     rw [conjugate_set_eq_image, set.card_image_of_injective _ conj_inj_left,
     card_sylow K hp, card_sylow H hp] },
-  { -- |- H ⊆ conjugate_set x K
+  {
     assume y hy,
     have : (y⁻¹ * x)⁻¹ * x ∈ K := quotient.exact ((mem_fixed_points' (left_cosets K)).1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩),
     simp [conjugate_set_eq_preimage, set.preimage, mul_inv_rev, *, mul_assoc] at * }
 end
 
 end sylow
-
---quotient.exact (mem_fixed_points'.1 hx ⟦y⁻¹ * x⟧ ⟨⟨y⁻¹, inv_mem hy⟩, rfl⟩)
